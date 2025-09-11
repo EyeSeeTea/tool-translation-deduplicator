@@ -17,17 +17,17 @@ let selectedDuplicates = [];
 // Fetch and filter translatable object types
 async function fetchTranslatableObjectTypes() {
     const response = await d2Get("api/schemas.json?fields=plural,translatable,relativeApiEndpoint&filter=translatable:eq:true");
-    return response.schemas.filter(schema => schema.translatable);
+    return response.schemas.filter(schema => schema.translatable && schema.relativeApiEndpoint);
 }
 
 
 // Fetch object data for a given type
 async function fetchObjectData(objectType) {
     try {
-        const response = await d2Get(`/api/${objectType.plural}?fields=name,id,translations&paging=false`);
+        const response = await d2Get(`/api${objectType.relativeApiEndpoint}?fields=name,id,translations&paging=false`);
         return response[objectType.plural];
     } catch (error) {
-        console.error(`Failed to fetch ${objectType.plural}:`, error);
+        console.error(`Failed to fetch ${objectType.relativeApiEndpoint}:`, error);
         return [];  // Return empty array if there's an error
     }
 }
