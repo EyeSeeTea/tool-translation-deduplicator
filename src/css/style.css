@@ -6,3 +6,16 @@ body {
 #mainView {
     margin: 8px;
 }
+.id-group-border {
+    border: 2px solid rgb(44, 102, 147);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(25, 118, 210, 0.08);
+}
+
+.id-group-border tr:first-child td {
+    border-top: none;
+}
+
+.id-group-border tr:last-child td {
+    border-bottom: none;
+}
