@@ -4,6 +4,7 @@ const path = require("path");
 const webpack = require("webpack");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HTMLWebpackPlugin = require("html-webpack-plugin");
+const { Buffer } = require("buffer");
 
 var dhisConfig;
 try {
@@ -17,7 +18,7 @@ try {
     };
 }
 
-const devServerPort = 8081;
+const devServerPort = dhisConfig.port || 8081;
 const isDevBuild = process.argv[1].indexOf("webpack-dev-server") !== -1;
 
 
@@ -63,7 +64,7 @@ const webpackConfig = {
     output: {
         path: __dirname + "/build",
         filename: "[name]-[hash].js",
-        publicPath: isDevBuild ? "http://localhost:8081/" : "./"
+        publicPath: isDevBuild ? `http://localhost:${dhisConfig.port}/` : "./"
     },
     module: {
         rules: [

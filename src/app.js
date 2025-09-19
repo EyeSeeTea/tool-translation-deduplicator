@@ -2,6 +2,7 @@
 
 // JS Imports
 import { d2Get, d2PutJson } from "./js/d2api.js";
+import { loadLegacyHeaderBarIfNeeded } from "./js/check-header-bar.js";
 import M from "materialize-css";
 
 // CSS Imports
@@ -11,22 +12,23 @@ import "materialize-css/dist/css/materialize.min.css";
 // Global state
 let duplicates = [];
 let selectedDuplicates = [];
+let objectTypeFilter = "";
 
 
 // Fetch and filter translatable object types
 async function fetchTranslatableObjectTypes() {
     const response = await d2Get("api/schemas.json?fields=plural,translatable,relativeApiEndpoint&filter=translatable:eq:true");
-    return response.schemas.filter(schema => schema.translatable);
+    return response.schemas.filter(schema => schema.translatable && schema.relativeApiEndpoint);
 }
 
 
 // Fetch object data for a given type
 async function fetchObjectData(objectType) {
     try {
-        const response = await d2Get(`/api/${objectType.plural}?fields=name,id,translations`);
+        const response = await d2Get(`/api${objectType.relativeApiEndpoint}?fields=name,id,translations&paging=false`);
         return response[objectType.plural];
     } catch (error) {
-        console.error(`Failed to fetch ${objectType.plural}:`, error);
+        console.error(`Failed to fetch ${objectType.relativeApiEndpoint}:`, error);
         return [];  // Return empty array if there's an error
     }
 }
@@ -187,15 +189,41 @@ function createTableRow(item, rowspan) {
 }
 
 
-// Render the table with duplicates and selection handlers
 function renderTable() {
     const root = document.getElementById("root");
     root.innerHTML = "";
 
-    if (duplicates.length === 0) {
+    // Filter duplicates by object type if filter is set
+    let filteredDuplicates = duplicates;
+    if (objectTypeFilter) {
+        filteredDuplicates = duplicates.filter(dup => dup.type === objectTypeFilter);
+    }
+
+    if (filteredDuplicates.length === 0) {
         M.toast({ html: "No duplicate translations found.", classes: "rounded" });
         return;
     }
+
+    // Create filter dropdown
+    const filterDiv = document.createElement("div");
+    filterDiv.style.marginBottom = "16px";
+    const label = document.createElement("label");
+    label.textContent = "Filter by Object Type: ";
+    const select = document.createElement("select");
+    select.id = "objectTypeFilter";
+    select.className = "browser-default";
+    select.style.width = "200px";
+    select.innerHTML = "<option value=\"\">All</option>" +
+        [...new Set(duplicates.map(dup => dup.type))]
+            .map(type => `<option value="${type}" ${objectTypeFilter === type ? "selected" : ""}>${type}</option>`)
+            .join("");
+    select.addEventListener("change", (e) => {
+        objectTypeFilter = e.target.value;
+        renderTable();
+    });
+    label.appendChild(select);
+    filterDiv.appendChild(label);
+    root.appendChild(filterDiv);
 
     const table = document.createElement("table");
     table.className = "striped";
@@ -208,11 +236,11 @@ function renderTable() {
     // "Select All" Checkbox
     const selectAllCheckboxCell = document.createElement("th");
     const selectAllCheckbox = document.createElement("label");
-    const isAllSelected = duplicates.length > 0 && selectedDuplicates.length === duplicates.length;
+    const isAllSelected = filteredDuplicates.length > 0 && selectedDuplicates.length === filteredDuplicates.length;
     selectAllCheckbox.innerHTML = `<input type="checkbox" ${isAllSelected ? "checked" : ""} /><span></span>`;
     selectAllCheckbox.querySelector("input").addEventListener("change", (event) => {
         const isChecked = event.target.checked;
-        selectedDuplicates = isChecked ? duplicates.map(dup => dup.id) : [];
+        selectedDuplicates = isChecked ? filteredDuplicates.map(dup => dup.id) : [];
         renderTable();
     });
     selectAllCheckboxCell.appendChild(selectAllCheckbox);
@@ -226,27 +254,28 @@ function renderTable() {
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    const tbody = document.createElement("tbody");
-    const groupedByObject = duplicates.reduce((acc, item) => {
+    const groupedByObject = filteredDuplicates.reduce((acc, item) => {
         acc[item.id] = acc[item.id] || [];
         acc[item.id].push(item);
         return acc;
     }, {});
 
     Object.values(groupedByObject).forEach(group => {
+        const groupTbody = document.createElement("tbody");
+        groupTbody.className = "id-group-border";
         group.forEach((item, index) => {
             const row = createTableRow(item, index === 0 ? group.length : 0);
-            tbody.appendChild(row);
+            groupTbody.appendChild(row);
         });
+        table.appendChild(groupTbody);
     });
-    table.appendChild(tbody);
 
     root.appendChild(table);
 
     const fixButton = document.createElement("button");
     fixButton.className = "btn";
     fixButton.textContent = "Fix Selected";
-    fixButton.addEventListener("click", () => fixSelectedTranslations(duplicates.filter(item => selectedDuplicates.includes(item.id))));
+    fixButton.addEventListener("click", () => fixSelectedTranslations(filteredDuplicates.filter(item => selectedDuplicates.includes(item.id))));
     root.appendChild(fixButton);
 }
 
@@ -309,3 +338,5 @@ document.addEventListener("DOMContentLoaded", loadData);
 // Make key functions available on the window object
 window.fixSelectedTranslations = fixSelectedTranslations;
 window.renderTable = renderTable;
+
+loadLegacyHeaderBarIfNeeded();
