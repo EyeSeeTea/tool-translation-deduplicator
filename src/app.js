@@ -12,6 +12,7 @@ import "materialize-css/dist/css/materialize.min.css";
 // Global state
 let duplicates = [];
 let selectedDuplicates = [];
+let objectTypeFilter = "";
 
 
 // Fetch and filter translatable object types
@@ -188,7 +189,6 @@ function createTableRow(item, rowspan) {
 }
 
 
-let objectTypeFilter = "";
 function renderTable() {
     const root = document.getElementById("root");
     root.innerHTML = "";
